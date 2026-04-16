@@ -154,7 +154,7 @@ class GeminiSDKModel(Model):
         self.model_id = model_id
         self.api_key = api_key
         self.temperature = temperature
-        self.client = genai.Client(api_key=api_key, http_options={"api_version": "v1"})
+        self.client = genai.Client(api_key=api_key)
 
     def update_config(self, **model_config: Any) -> None:
         if "model_id" in model_config:
