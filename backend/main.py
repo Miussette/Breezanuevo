@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
@@ -28,6 +29,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def normalize_path_middleware(request, call_next):
+    """Colapsa múltiples slashes (//) en la ruta para evitar errores 404/405."""
+    path = request.scope["path"]
+    if "//" in path:
+        request.scope["path"] = re.sub(r"/+", "/", path)
+    return await call_next(request)
 
 
 @app.get("/health")
