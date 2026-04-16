@@ -4,4 +4,4 @@ strands-agents[gemini]==1.6.0
 uvicorn[standard]==0.34.2
 openai
 litellm
-google-generativeai
+google-genai
