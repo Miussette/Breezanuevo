@@ -5,8 +5,13 @@ import re
 from typing import TypedDict
 
 from strands import Agent
-from strands.models.litellm import LiteLLMModel
+from strands.models.model import Model
+from strands.types.content import ContentBlock, Messages
+from strands.types.streaming import StreamEvent
+from strands.types.tools import ToolSpec
 
+import google.generativeai as genai
+from pydantic import BaseModel
 from .tools import (
     ActionKind,
     ActionPayload,
@@ -143,14 +148,70 @@ FEAR_KEYWORDS = (
 )
 
 
+class GeminiSDKModel(Model):
+    def __init__(self, model_id: str, api_key: str, temperature: float = 0.2):
+        self.model_id = model_id
+        self.api_key = api_key
+        self.temperature = temperature
+        genai.configure(api_key=api_key)
+        self.client = genai.GenerativeModel(model_id)
+
+    def update_config(self, **model_config: Any) -> None:
+        if "model_id" in model_config:
+            self.model_id = model_config["model_id"]
+            self.client = genai.GenerativeModel(self.model_id)
+        if "temperature" in model_config:
+            self.temperature = model_config["temperature"]
+
+    def get_config(self) -> Any:
+        return {"model_id": self.model_id, "temperature": self.temperature}
+
+    async def structured_output(self, *args, **kwargs):
+        raise NotImplementedError("Structured output not used in Breeza yet")
+
+    async def stream(
+        self,
+        messages: Messages,
+        tool_specs: Optional[list[ToolSpec]] = None,
+        system_prompt: Optional[str] = None,
+        **kwargs: Any,
+    ) -> AsyncGenerator[StreamEvent, None]:
+        # Convertir mensajes de Strands a formato Google Gemini
+        history = []
+        for msg in messages[:-1]:
+            role = "user" if msg["role"] == "user" else "model"
+            text_parts = [c["text"] for c in msg["content"] if "text" in c]
+            if text_parts:
+                history.append({"role": role, "parts": [{"text": t} for t in text_parts]})
+        
+        last_msg = messages[-1]
+        last_text = "".join([c["text"] for c in last_msg["content"] if "text" in c])
+
+        chat = self.client.start_chat(history=history or None)
+        
+        yield {"messageStart": {"role": "assistant"}}
+        yield {"contentBlockStart": {"start": {}}}
+        
+        # El SDK de Google ya maneja el streaming de forma sencilla
+        # Nota: llamando de forma síncrona aquí para simplificar, pero en un entorno real 
+        # se debería usar un thread pool o el cliente async si está disponible
+        response = self.client.generate_content(last_text, stream=True)
+        
+        for chunk in response:
+            if chunk.text:
+                yield {"contentBlockDelta": {"delta": {"text": chunk.text}}}
+        
+        yield {"contentBlockStop": {}}
+        yield {"messageStop": {"stopReason": "end_turn"}}
+
+
 def build_agent() -> Agent:
-    # Usamos LiteLLM para manejar las particularidades de autenticación de Gemini
-    model = LiteLLMModel(
-        model_id="gemini/gemini-1.5-flash",
-        client_args={
-            "api_key": os.getenv("GEMINI_API_KEY")
-        },
-        temperature=0.2,
+    # Solución definitiva: Usamos el SDK oficial de Google para evitar errores de proxy
+    api_key = os.getenv("GEMINI_API_KEY")
+    model = GeminiSDKModel(
+        model_id="gemini-1.5-flash",
+        api_key=api_key,
+        temperature=0.2
     )
 
     return Agent(
