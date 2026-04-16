@@ -5,7 +5,7 @@ import re
 from typing import TypedDict
 
 from strands import Agent
-from strands.models.google import GeminiModel
+from strands.models.openai import OpenAIModel
 
 from .tools import (
     ActionKind,
@@ -144,10 +144,13 @@ FEAR_KEYWORDS = (
 
 
 def build_agent() -> Agent:
-    # Usamos Gemini 1.5 Flash por su velocidad y generoso plan gratuito
-    model = GeminiModel(
+    # Usamos la interfaz de OpenAI que soporta Gemini para máxima compatibilidad
+    model = OpenAIModel(
         model_id=os.getenv("GEMINI_MODEL", "gemini-1.5-flash"),
-        api_key=os.getenv("GEMINI_API_KEY"),
+        client_args={
+            "api_key": os.getenv("GEMINI_API_KEY"),
+            "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/"
+        },
         temperature=0.2,
     )
 
