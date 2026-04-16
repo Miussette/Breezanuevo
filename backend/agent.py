@@ -186,37 +186,38 @@ class GeminiSDKModel(Model):
         yield {"messageStart": {"role": "assistant"}}
         yield {"contentBlockStart": {"start": {}}}
         
-        # Usamos el nuevo SDK de Google
-        response = self.client.models.generate_content_stream(
-            model=self.model_id,
-            contents=contents,
-            config=types.GenerateContentConfig(
-                system_instruction=system_prompt,
-                temperature=self.temperature,
+        try:
+            # Usamos el modo ASINCRÓNICO del SDK de Google para mejor performance
+            response = await self.client.aio.models.generate_content_stream(
+                model=self.model_id,
+                contents=contents,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_prompt,
+                    temperature=self.temperature,
+                )
             )
-        )
-        
-        for chunk in response:
-            if chunk.text:
-                yield {"contentBlockDelta": {"delta": {"text": chunk.text}}}
+            
+            async for chunk in response:
+                if chunk.text:
+                    yield {"contentBlockDelta": {"delta": {"text": chunk.text}}}
+                    
+        except Exception as e:
+            error_msg = f"Error en Gemini: {str(e)}"
+            if "429" in error_msg:
+                error_msg = "He agotado mi límite de mensajes por ahora. Por favor, espera un minuto y vuelve a intentarlo."
+            yield {"contentBlockDelta": {"delta": {"text": f"\n\n[Breeza: {error_msg}]"}}}
         
         yield {"contentBlockStop": {}}
         yield {"messageStop": {"stopReason": "end_turn"}}
 
 
 def build_agent() -> Agent:
-    # Solución definitiva v2: Usamos el SDK más reciente y el modelo 2.0 que está disponible
+    # Usamos gemini-1.5-flash que es el estándar más estable para la capa gratuita
     api_key = os.getenv("GEMINI_API_KEY")
     model = GeminiSDKModel(
-        model_id="gemini-2.0-flash",
+        model_id="gemini-1.5-flash",
         api_key=api_key,
         temperature=0.2
-    )
-
-    return Agent(
-        system_prompt=BREEZA_SYSTEM_PROMPT,
-        model=model,
-        tools=[breathingExercise, scheduleBreak, logMood],
     )
 
     return Agent(
