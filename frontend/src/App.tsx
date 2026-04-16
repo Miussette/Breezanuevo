@@ -11,7 +11,7 @@ import { useAmbientSound } from './hooks/useAmbientSound'
 import { useSpeechRecognition } from './hooks/useSpeechRecognition'
 import type { ActionDetails, ChatMessage as ChatMessageType, ChatResponse, MoodEntry } from './types'
 
-const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:8787'
+const apiUrl = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:8787')
 
 function sanitizeForSpeech(text: string) {
   return text
