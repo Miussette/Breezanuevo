@@ -13,7 +13,9 @@ from pydantic import BaseModel, Field
 from .agent import run_breeza_agent
 from .tools import get_mood_history
 
-load_dotenv()
+# Cargar variables de entorno desde el archivo .env en la carpeta backend
+env_path = os.path.join(os.path.dirname(__file__), '.env')
+load_dotenv(dotenv_path=env_path)
 
 
 class ChatRequest(BaseModel):
