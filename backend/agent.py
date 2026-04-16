@@ -5,7 +5,7 @@ import re
 from typing import TypedDict
 
 from strands import Agent
-from strands.models.ollama import OllamaModel
+from strands.models.google import GeminiModel
 
 from .tools import (
     ActionKind,
@@ -144,9 +144,10 @@ FEAR_KEYWORDS = (
 
 
 def build_agent() -> Agent:
-    model = OllamaModel(
-        host=os.getenv("OLLAMA_HOST", "http://localhost:11434"),
-        model_id=os.getenv("OLLAMA_MODEL", "llama3.2:3b"),
+    # Usamos Gemini 1.5 Flash por su velocidad y generoso plan gratuito
+    model = GeminiModel(
+        model_id=os.getenv("GEMINI_MODEL", "gemini-1.5-flash"),
+        api_key=os.getenv("GEMINI_API_KEY"),
         temperature=0.2,
     )
 
