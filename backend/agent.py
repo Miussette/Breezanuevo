@@ -263,17 +263,11 @@ def run_breeza_agent(message: str) -> RunAgentResult:
 
     try:
         # Primero detectamos acciones basadas en reglas (keywords)
-        # Esto asegura que las herramientas se activen incluso si el modelo de IA falla.
         _ensure_required_actions(message, action_log)
         
-        agent_response = ""
-        try:
-            agent = build_agent()
-            result = agent(message)
-            agent_response = _normalize_text(str(result))
-        except Exception as e:
-            print(f"Error calling LLM: {e}")
-            agent_response = "Estoy aquí contigo. He activado algunas herramientas de apoyo basadas en lo que me cuentas mientras recupero mi conexión completa."
+        agent = build_agent()
+        result = agent(message)
+        agent_response = _normalize_text(str(result))
 
         actions, action_details = _summarize_actions(action_log)
 
