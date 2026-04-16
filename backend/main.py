@@ -60,7 +60,10 @@ def moods() -> dict[str, list[dict[str, object]]]:
 def chat(payload: ChatRequest) -> dict[str, object]:
     try:
         return run_breeza_agent(payload.message.strip())
-    except Exception as exc:  # pragma: no cover - simple demo API path
+    except Exception as exc:
+        import traceback
+        print(f"ERROR EN EL CHAT: {exc}")
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 # Configuración para servir el frontend de React (Vite) en producción

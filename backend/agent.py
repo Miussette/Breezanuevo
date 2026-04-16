@@ -5,7 +5,7 @@ import re
 from typing import TypedDict
 
 from strands import Agent
-from strands.models.openai import OpenAIModel
+from strands.models.litellm import LiteLLMModel
 
 from .tools import (
     ActionKind,
@@ -144,12 +144,11 @@ FEAR_KEYWORDS = (
 
 
 def build_agent() -> Agent:
-    # Usamos la interfaz de OpenAI que soporta Gemini para máxima compatibilidad
-    model = OpenAIModel(
-        model_id=os.getenv("GEMINI_MODEL", "gemini-1.5-flash"),
+    # Usamos LiteLLM para manejar las particularidades de autenticación de Gemini
+    model = LiteLLMModel(
+        model_id="gemini/gemini-1.5-flash",
         client_args={
-            "api_key": os.getenv("GEMINI_API_KEY"),
-            "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/"
+            "api_key": os.getenv("GEMINI_API_KEY")
         },
         temperature=0.2,
     )
