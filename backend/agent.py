@@ -241,13 +241,9 @@ class GeminiSDKModel(Model):
         
         if not has_content:
             fallback_text = (
-                "\n\n[Breeza: Misión de Calma Activa]\n"
-                "Google Gemini está saturado, pero yo sigo aquí contigo. \n"
-                "Respiremos juntos mientras vuelve la conexión:\n"
-                "1. Inhala profundo por la nariz contando 4 segundos.\n"
-                "2. Mantén el aire por 4 segundos más.\n"
-                "3. Exhala muy lento por la boca durante 6 segundos.\n"
-                "Repite esto mientras presionas los botones de abajo. Todo va a estar bien."
+                "Entiendo que estás pasando por un momento difícil. Aunque mi conexión principal está un poco lenta ahora, "
+                "por favor respira profundo conmigo. Inhala en 4 segundos, mantén el aire 4 segundos y exhala muy lento en 6.\n\n"
+                "Estoy aquí contigo y vamos a salir de esta juntos. Repite la respiración mientras usamos los botones de abajo."
             )
             yield {"contentBlockDelta": {"delta": {"text": fallback_text}}}
         
