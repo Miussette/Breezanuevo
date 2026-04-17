@@ -187,6 +187,14 @@ class GeminiSDKModel(Model):
         yield {"contentBlockStart": {"start": {}}}
         
         try:
+            # Configuración de seguridad relajada para permitir discusiones de bienestar emocional
+            safety_settings = [
+                types.SafetySetting(category="HATE_SPEECH", threshold="OFF"),
+                types.SafetySetting(category="HARASSMENT", threshold="OFF"),
+                types.SafetySetting(category="SEXUALLY_EXPLICIT", threshold="OFF"),
+                types.SafetySetting(category="DANGEROUS_CONTENT", threshold="OFF"),
+            ]
+
             # Usamos el modo ASINCRÓNICO del SDK de Google para mejor performance
             response = await self.client.aio.models.generate_content_stream(
                 model=self.model_id,
@@ -194,12 +202,20 @@ class GeminiSDKModel(Model):
                 config=types.GenerateContentConfig(
                     system_instruction=system_prompt,
                     temperature=self.temperature,
+                    safety_settings=safety_settings,
                 )
             )
             
+            has_content = False
             async for chunk in response:
                 if chunk.text:
+                    has_content = True
+                    print(f"DEBUG AI: {chunk.text}") # Debug en terminal
                     yield {"contentBlockDelta": {"delta": {"text": chunk.text}}}
+            
+            if not has_content:
+                print("DEBUG AI: Gemini no devolvió texto (posible bloqueo o respuesta vacía)")
+                yield {"contentBlockDelta": {"delta": {"text": "Entiendo cómo te sientes. Estoy aquí para acompañarte."}}}
                     
         except Exception as e:
             error_msg = f"Error en Gemini: {str(e)}"
