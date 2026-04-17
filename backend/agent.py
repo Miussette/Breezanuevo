@@ -155,12 +155,13 @@ class GeminiSDKModel(Model):
         self.api_key = api_key
         self.temperature = temperature
         self.client = genai.Client(api_key=api_key)
-
-    def update_config(self, **model_config: Any) -> None:
-        if "model_id" in model_config:
-            self.model_id = model_config["model_id"]
-        if "temperature" in model_config:
-            self.temperature = model_config["temperature"]
+        # Lista de modelos de respaldo en orden de prioridad
+        self.fallback_models = [
+            "gemini-1.5-flash-latest",
+            "gemini-1.5-flash-8b",
+            "gemini-1.5-pro-latest",
+            "gemini-2.0-flash-exp" # Último recurso
+        ]
 
     def get_config(self) -> Any:
         return {"model_id": self.model_id, "temperature": self.temperature}
@@ -186,42 +187,63 @@ class GeminiSDKModel(Model):
         yield {"messageStart": {"role": "assistant"}}
         yield {"contentBlockStart": {"start": {}}}
         
-        try:
-            # Configuración de seguridad relajada para permitir discusiones de bienestar emocional
-            safety_settings = [
-                types.SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="BLOCK_NONE"),
-                types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="BLOCK_NONE"),
-                types.SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="BLOCK_NONE"),
-                types.SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="BLOCK_NONE"),
-            ]
+        # Intentamos con la cadena de modelos
+        models_to_try = [self.model_id] + [m for m in self.fallback_models if m != self.model_id]
+        
+        has_content = False
+        last_exception = None
+        
+        for model in models_to_try:
+            try:
+                print(f"DEBUG AI: Intentando con {model}...")
+                
+                # Configuración de seguridad relajada
+                safety_settings = [
+                    types.SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="BLOCK_NONE"),
+                    types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="BLOCK_NONE"),
+                    types.SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="BLOCK_NONE"),
+                    types.SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="BLOCK_NONE"),
+                ]
 
-            # Usamos el modo ASINCRÓNICO del SDK de Google para mejor performance
-            response = await self.client.aio.models.generate_content_stream(
-                model=self.model_id,
-                contents=contents,
-                config=types.GenerateContentConfig(
-                    system_instruction=system_prompt,
-                    temperature=self.temperature,
-                    safety_settings=safety_settings,
+                response = await self.client.aio.models.generate_content_stream(
+                    model=model,
+                    contents=contents,
+                    config=types.GenerateContentConfig(
+                        system_instruction=system_prompt,
+                        temperature=self.temperature,
+                        safety_settings=safety_settings,
+                    )
                 )
-            )
-            
-            has_content = False
-            async for chunk in response:
-                if chunk.text:
-                    has_content = True
-                    print(f"DEBUG AI: {chunk.text}") # Debug en terminal
-                    yield {"contentBlockDelta": {"delta": {"text": chunk.text}}}
-            
-            if not has_content:
-                print("DEBUG AI: Gemini no devolvió texto (posible bloqueo o respuesta vacía)")
-                yield {"contentBlockDelta": {"delta": {"text": "Entiendo cómo te sientes. Estoy aquí para acompañarte."}}}
+                
+                async for chunk in response:
+                    if chunk.text:
+                        has_content = True
+                        yield {"contentBlockDelta": {"delta": {"text": chunk.text}}}
+                
+                if has_content:
+                    break # Éxito con este modelo
                     
-        except Exception as e:
-            error_msg = f"Error en Gemini: {str(e)}"
-            if "429" in error_msg:
-                error_msg = "He agotado mi límite de mensajes por ahora. Por favor, espera un minuto y vuelve a intentarlo."
-            yield {"contentBlockDelta": {"delta": {"text": f"\n\n[Breeza: {error_msg}]"}}}
+            except Exception as e:
+                last_exception = e
+                print(f"DEBUG AI: Error con {model}: {str(e)[:100]}")
+                # Si es un error de cuota o servicio, intentamos el siguiente
+                if any(x in str(e) for x in ["429", "503", "504", "SERVICE_UNAVAILABLE"]):
+                    continue
+                else:
+                    # Otros errores (como 404 o 400) también intentamos el siguiente por si acaso
+                    continue
+        
+        if not has_content:
+            fallback_text = (
+                "\n\n[Breeza: Misión de Calma Activa]\n"
+                "Google Gemini está saturado, pero yo sigo aquí contigo. \n"
+                "Respiremos juntos mientras vuelve la conexión:\n"
+                "1. Inhala profundo por la nariz contando 4 segundos.\n"
+                "2. Mantén el aire por 4 segundos más.\n"
+                "3. Exhala muy lento por la boca durante 6 segundos.\n"
+                "Repite esto mientras presionas los botones de abajo. Todo va a estar bien."
+            )
+            yield {"contentBlockDelta": {"delta": {"text": fallback_text}}}
         
         yield {"contentBlockStop": {}}
         yield {"messageStop": {"stopReason": "end_turn"}}
