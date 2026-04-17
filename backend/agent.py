@@ -163,6 +163,12 @@ class GeminiSDKModel(Model):
             "gemini-2.0-flash-exp" # Último recurso
         ]
 
+    def update_config(self, **model_config: Any) -> None:
+        if "model_id" in model_config:
+            self.model_id = model_config["model_id"]
+        if "temperature" in model_config:
+            self.temperature = model_config["temperature"]
+
     def get_config(self) -> Any:
         return {"model_id": self.model_id, "temperature": self.temperature}
 
