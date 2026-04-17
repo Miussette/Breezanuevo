@@ -212,10 +212,10 @@ class GeminiSDKModel(Model):
 
 
 def build_agent() -> Agent:
-    # Usamos gemini-1.5-flash que es el estándar más estable para la capa gratuita
+    # Usamos gemini-flash-latest que es el alias más compatible
     api_key = os.getenv("GEMINI_API_KEY")
     model = GeminiSDKModel(
-        model_id="gemini-1.5-flash",
+        model_id="gemini-flash-latest",
         api_key=api_key,
         temperature=0.2
     )
